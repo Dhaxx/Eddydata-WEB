@@ -115,7 +115,7 @@ func Icadorc(p *mpb.Progress) {
 	}
 	defer tx.Commit()
 
-	insertIcadorc, err := tx.Prepare(`insert into icadorc (numorc, item, cadpro, qtd, valor, itemorc, codccusto, itemorc_ag, id_cadorc, lote_ant, seq_ant) values (?,?,?,?,?,?,?,?,?,?,?)`)
+	insertIcadorc, err := tx.Prepare(`insert into icadorc (numorc, item, cadpro, qtd, valor, itemorc, codccusto, itemorc_ag, id_cadorc) values (?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		fmt.Printf("erro ao preparar insert: %v", err)
 	}
@@ -123,7 +123,8 @@ func Icadorc(p *mpb.Progress) {
 
 	query := `select 
 		rcms_id id_cadorc,
-		ordem item,
+		row_number() over (partition by rcms_id order by ordem, produto_unidade_id) item,
+		--ordem item,
 		produto_unidade_id codreduz,
 		quantidade qtd,
 		valor_unitario valor
@@ -182,7 +183,7 @@ func Vcadorc(p *mpb.Progress) {
 	query := `select
 		a.favorecido_id codif,
 		--d.nome,
-		c.ordem item,
+		row_number() over (partition by a.rcms_id order by ordem, produto_unidade_id) item,
 		b.valor_unitario,
 		c.quantidade * b.valor_unitario total,
 		a.rcms_id id_cadorc

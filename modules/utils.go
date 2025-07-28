@@ -448,3 +448,12 @@ func ContratosAdit(p *mpb.Progress) {
 		bar.Increment()
 	}
 }
+
+func DecodeWin1252(b []byte) string {
+    decoder := charmap.Windows1252.NewDecoder()
+    result, err := decoder.Bytes(b)
+    if err != nil {
+        return fmt.Sprintf("[erro]: %v", err)
+    }
+    return string(result)
+}

@@ -94,7 +94,6 @@ func Cadped(p *mpb.Progress) {
 	defer rows.Close()
 
 	var inseridos = make(map[int64]bool)
-	var item int64
 
 	totalRows, err := modules.CountRows(query)
 	if err != nil {
@@ -110,15 +109,7 @@ func Cadped(p *mpb.Progress) {
 		}
 
 		if !inseridos[registro.IdCadped] {
-			var numlic string
 			inseridos[registro.IdCadped] = true
-			item = 0
-
-			if err := cnxDest.QueryRow(fmt.Sprintf(`select numlic from cadlic where processo = '%s'`, registro.IdProcesso)).Scan(&numlic); err != nil {
-				if err.Error() != "sql: no rows in result set" {
-					panic(fmt.Sprintf("erro ao buscar numlic: %v", err.Error()))
-				}
-			}
 
 			if _, err := insertCadped.Exec(
 				registro.Numped,
@@ -137,7 +128,6 @@ func Cadped(p *mpb.Progress) {
 			}
 		}
 
-		item++
 		if _, err := insertIcadped.Exec(
 			registro.Numped,
 			registro.IdCadped,
@@ -153,4 +143,6 @@ func Cadped(p *mpb.Progress) {
 		bar.Increment()
 	}
 	tx.Commit()
+
+	cnxDest.Exec("update cadped a set a.numorc = (select numorc from cadorc b where a.id_cadorc = b.id_cadorc)")
 }

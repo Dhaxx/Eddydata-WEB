@@ -29,7 +29,7 @@ func Cadunimedida(p *mpb.Progress) {
 	}
 	defer insert.Close()
 
-	query := `select substring(nome,1,4) sigla from "Y174" order by 1`
+	query := `SELECT substring(nome::bytea,1,5) FROM "Y174"`
 	
 	rows, err := cnxOrig.Query(query)
 	if err != nil {
@@ -44,12 +44,19 @@ func Cadunimedida(p *mpb.Progress) {
 	bar := modules.NewProgressBar(p, totalRows, "CADUNIMEDIDA")
 
 	for rows.Next() {
+		var nomeBytes []byte
 		var sigla string
-		if err := rows.Scan(&sigla); err != nil {
+		if err := rows.Scan(&nomeBytes); err != nil {
 			panic(fmt.Sprintf("erro ao ler resultados da consulta: %v", err.Error()))
 		}
 
-		_, err = insert.Exec(sigla, sigla)
+		sigla = modules.DecodeWin1252(nomeBytes)
+
+		if len(nomeBytes) > 5 {
+			sigla = sigla[:4]
+		}
+
+		_, err = insert.Exec(nomeBytes, nomeBytes)
 		if err != nil {
 			panic(fmt.Sprintf("erro ao executar insert: %v", err.Error()))
 		}
@@ -79,7 +86,7 @@ func GrupoSubgrupo(p *mpb.Progress) {
 		panic(fmt.Sprintf("erro ao preparar insert cadgrupo: %v", err.Error()))
 	}
 
-	query := `select TO_CHAR(ID, 'fm000') grupo, nome, null id_audesp, 'N' ocultar from "Y95"`
+	query := `select TO_CHAR(ID, 'fm000') GRUPO, NOME, null ID_AUDESP, 'N' OCULTAR from "Y95"`
 
 	rows, err := cnxOrig.Queryx(query)
 	if err != nil {
@@ -141,6 +148,10 @@ func GrupoSubgrupo(p *mpb.Progress) {
 			panic(fmt.Sprintf("erro ao ler resultados da consulta cadsubgr: %v", err.Error()))
 		}
 
+		if len(registro.Nome) > 100 {
+			registro.Nome = registro.Nome[:100]
+		}
+
 		_, err = insert.Exec(registro.Grupo, registro.Subgrupo, registro.Nome, registro.Ocultar)
 		if err != nil {
 			panic(fmt.Sprintf("erro ao executar insert cadsubgr: %v", err.Error()))
@@ -174,13 +185,13 @@ func Cadest(p *mpb.Progress) {
 
 	query := `select
 		to_char(b.id, 'fm000') grupo,
-		b.sub_grupo_id,
+		b.sub_grupo_id subgrupo,
 		to_char(a.id, 'fm000') codigo,
 		concat(to_char(b.id, 'fm000'),'.',b.sub_grupo_id,'.',to_char(a.id, 'fm000'))  cadpro,
 		a.id codreduz,
-		a.nome disc1,
+		a.nome::bytea disc1,
 		'N' inativo,
-		substring(d.nome,1,4) unidade,
+		substring(d.nome::bytea,1,5) unidade,
 		'P' tipopro,
 		'C' usopro
 	from
@@ -208,6 +219,11 @@ func Cadest(p *mpb.Progress) {
 
 		if err := rows.StructScan(&registro); err != nil {
 			panic(fmt.Sprintf("erro ao ler resultados da consulta cadest: %v", err.Error()))
+		}
+
+		registro.Disc1, err = modules.DecodeToWin1252(registro.Disc1)
+		if err != nil {
+			panic(fmt.Sprintf("erro ao decodificar disc1: %v", err.Error()))
 		}
 
 		_, err = insert.Exec(registro.Grupo, registro.Subgrupo, registro.Codigo, registro.Cadpro, registro.Codreduz, registro.Disc1, registro.Ocultar, registro.Unid1, registro.Tipopro, registro.Usopro)
