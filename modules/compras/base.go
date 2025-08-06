@@ -350,7 +350,7 @@ func CentroCusto(p *mpb.Progress) {
 	query := `select
 		'01' poder,
 		'01' orgao,
-		upper(nome)::bytea nome,
+		upper(nome) nome,
 		codigo codccusto,
 		1 ccusto
 	from

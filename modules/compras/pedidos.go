@@ -129,11 +129,13 @@ func Cadped(p *mpb.Progress) {
 			}
 		}
 
+		registro.Cadpro = modules.Cache.Cadpros[registro.Codreduz] 
+
 		if _, err := insertIcadped.Exec(
 			registro.Numped,
 			registro.IdCadped,
 			registro.Item,
-			modules.Cache.Cadpros[registro.Cadpro],
+			registro.Cadpro,
 			registro.Codccusto,
 			registro.Qtd,
 			registro.Prcunt,
