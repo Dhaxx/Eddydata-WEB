@@ -73,17 +73,18 @@ func Cadped(p *mpb.Progress) {
 		rcms_id id_cadorc,
 		concat('COMPRA ', concat(to_char(a.numero, 'fm00000/'), exercicio_id)) obs,
 		a.id id_cadped,
-		c.ordem item,
+		coalesce(c.ordem, 1) item,
 		c.produto_unidade_id codreduz,
 		quantidade, 
 		c.valor_unitario prcunt,
 		quantidade * c.valor_unitario prctot
 	from
-		"Y29" a
-	join "Y153" b on
+		"X29" a
+	join "X157" b on
 		a.setor_id = b.id
-	join "Y30" c on
+	join "X30" c on
 		c.compra_id = a.id
+	where c.ordem is not null
 	order by
 		a.ID`
 

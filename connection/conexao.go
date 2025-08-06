@@ -41,7 +41,7 @@ func init() {
         os.Getenv("FDB_PORT_ANX"),
         os.Getenv("FDB_PATH_ANX"))
 
-    dsnPg = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+    dsnPg = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname='%s' sslmode=disable",
         os.Getenv("PG_HOST"),
         os.Getenv("PG_PORT"),
         os.Getenv("PG_USER"),

@@ -4,6 +4,7 @@ import (
 	"Eddydata-WEB/connection"
 	"Eddydata-WEB/modules"
 	"fmt"
+
 	"github.com/vbauerster/mpb"
 )
 
@@ -11,11 +12,11 @@ func Cadunimedida(p *mpb.Progress) {
 	modules.LimpaTabela([]string{"cadunimedida"})
 
 	cnxOrig, cnxDest, err := connection.GetConexoes()
-    if err != nil {
+	if err != nil {
 		panic(fmt.Sprintf("erro ao obter conexões: %v", err.Error()))
-    }
-    defer cnxOrig.Close()
-    defer cnxDest.Close()
+	}
+	defer cnxOrig.Close()
+	defer cnxDest.Close()
 
 	tx, err := cnxDest.Begin()
 	if err != nil {
@@ -29,8 +30,8 @@ func Cadunimedida(p *mpb.Progress) {
 	}
 	defer insert.Close()
 
-	query := `SELECT substring(nome::bytea,1,5) FROM "Y174"`
-	
+	query := `SELECT distinct(SUBSTRING(nome,0,5))::bytea nome FROM "X178"`
+
 	rows, err := cnxOrig.Query(query)
 	if err != nil {
 		panic(fmt.Sprintf("erro ao executar consulta: %v", err.Error()))
@@ -50,13 +51,21 @@ func Cadunimedida(p *mpb.Progress) {
 			panic(fmt.Sprintf("erro ao ler resultados da consulta: %v", err.Error()))
 		}
 
-		sigla = modules.DecodeWin1252(nomeBytes)
+		sigla, err = modules.DecodeWin1252FromBytes(nomeBytes)
+		if err != nil {
+			panic(fmt.Sprintf("erro ao decodificar nome: %v", err.Error()))
+		}
 
 		if len(nomeBytes) > 5 {
 			sigla = sigla[:4]
 		}
 
-		_, err = insert.Exec(nomeBytes, nomeBytes)
+		sigla, err = modules.EncodeToWin1252(sigla)
+		if err != nil {
+			panic(fmt.Sprintf("erro ao codificar sigla: %v", err.Error()))
+		}
+
+		_, err = insert.Exec(sigla, sigla)
 		if err != nil {
 			panic(fmt.Sprintf("erro ao executar insert: %v", err.Error()))
 		}
@@ -66,7 +75,7 @@ func Cadunimedida(p *mpb.Progress) {
 }
 
 func GrupoSubgrupo(p *mpb.Progress) {
-	modules.LimpaTabela([]string{"cadsubgr","cadgrupo"})
+	modules.LimpaTabela([]string{"cadsubgr", "cadgrupo"})
 
 	cnxOrig, cnxDest, err := connection.GetConexoes()
 	if err != nil {
@@ -86,7 +95,7 @@ func GrupoSubgrupo(p *mpb.Progress) {
 		panic(fmt.Sprintf("erro ao preparar insert cadgrupo: %v", err.Error()))
 	}
 
-	query := `select TO_CHAR(ID, 'fm000') GRUPO, NOME, null ID_AUDESP, 'N' OCULTAR from "Y95"`
+	query := `select TO_CHAR(ID, 'fm000') GRUPO, NOME, null ID_AUDESP, 'N' OCULTAR from "X98"`
 
 	rows, err := cnxOrig.Queryx(query)
 	if err != nil {
@@ -106,6 +115,11 @@ func GrupoSubgrupo(p *mpb.Progress) {
 			panic(fmt.Sprintf("erro ao ler resultados da consulta cadgrupo: %v", err.Error()))
 		}
 
+		registro.Nome, err = modules.EncodeToWin1252(registro.Nome)
+		if err != nil {
+			panic(fmt.Sprintf("erro ao decodificar nome: %v", err.Error()))
+		}
+
 		_, err = insert.Exec(registro.Grupo, registro.Nome, registro.BalcoTce, registro.BalcoTce, registro.Ocultar)
 		if err != nil {
 			panic(fmt.Sprintf("erro ao executar insert cadgrupo: %v", err.Error()))
@@ -115,7 +129,7 @@ func GrupoSubgrupo(p *mpb.Progress) {
 	}
 	tx.Commit()
 
-	query = `select to_char(grupo_id, 'fm000') grupo, to_char(id, 'fm000') subgrupo, nome, 'N' ocultar from "Y155"`
+	query = `select to_char(grupo_id, 'fm000') grupo, to_char(id, 'fm000') subgrupo, nome::BYTEA, 'N' ocultar from "X159"`
 
 	tx, err = cnxDest.Begin()
 	if err != nil {
@@ -195,10 +209,10 @@ func Cadest(p *mpb.Progress) {
 		'P' tipopro,
 		'C' usopro
 	from
-		"Y126" a
-	join "Y95" b on a.material_id = b.id 
-	join "Y127" c on c.produto_id = a.id
-	join "Y174" d on c.unidade_id = d.id
+		"X129" a
+	join "X98" b on a.material_id = b.id 
+	left join "X130" c on c.produto_id = a.id
+	join "X178" d on c.unidade_id = d.id
 	order by
 		1,2,3`
 
@@ -221,7 +235,7 @@ func Cadest(p *mpb.Progress) {
 			panic(fmt.Sprintf("erro ao ler resultados da consulta cadest: %v", err.Error()))
 		}
 
-		registro.Disc1, err = modules.DecodeToWin1252(registro.Disc1)
+		registro.Disc1, err = modules.EncodeToWin1252(registro.Disc1)
 		if err != nil {
 			panic(fmt.Sprintf("erro ao decodificar disc1: %v", err.Error()))
 		}
@@ -242,10 +256,10 @@ func Cadest(p *mpb.Progress) {
 	cadpros, err := cnxDest.Query(`select cadpro, 
 			codreduz material
 			From cadest t join cadgrupo g on g.GRUPO = t.GRUPO`)
-		if err != nil {
-			panic("Falha ao executar consulta: " + err.Error())
-		}
-		defer cadpros.Close()
+	if err != nil {
+		panic("Falha ao executar consulta: " + err.Error())
+	}
+	defer cadpros.Close()
 
 	modules.Cache.Cadpros = make(map[string]string)
 	for cadpros.Next() {
@@ -279,7 +293,7 @@ func Destino(p *mpb.Progress) {
 		panic(fmt.Sprintf("erro ao preparar insert destino: %v", err.Error()))
 	}
 
-	query := fmt.Sprintf(`select to_char(id,'fm000000000') cod, nome from "Y58" where orgao_id = %v`, modules.Cache.Empresa)
+	query := fmt.Sprintf(`select to_char(id,'fm000000000') cod, nome from "X61" where orgao_id = %v`, modules.Cache.Empresa)
 
 	rows, err := cnxOrig.Query(query)
 	if err != nil {
@@ -336,11 +350,11 @@ func CentroCusto(p *mpb.Progress) {
 	query := `select
 		'01' poder,
 		'01' orgao,
-		upper(nome) nome,
+		upper(nome)::bytea nome,
 		codigo codccusto,
 		1 ccusto
 	from
-		"Y153"`
+		"X157"`
 
 	rows, err := cnxOrig.Queryx(query)
 	if err != nil {
@@ -353,7 +367,7 @@ func CentroCusto(p *mpb.Progress) {
 		panic(fmt.Sprintf("erro ao contar registros codccusto: %v", err.Error()))
 	}
 	bar := modules.NewProgressBar(p, totalRows, "CODCCUSTO")
-	
+
 	for rows.Next() {
 		var registro modelCentroCusto
 
@@ -366,5 +380,5 @@ func CentroCusto(p *mpb.Progress) {
 			panic(fmt.Sprintf("erro ao executar insert codccusto: %v", err.Error()))
 		}
 		bar.Increment()
-	}	
+	}
 }

@@ -156,7 +156,12 @@ func NewCol(table string, colName string) {
 	tx.Commit()
 }
 
-func DecodeToWin1252(input string) (string, error) {
+func DecodeWin1252FromBytes(b []byte) (string, error) {
+	decoder := charmap.Windows1252.NewDecoder()
+	return decoder.String(string(b))
+}
+
+func EncodeToWin1252(input string) (string, error) {
 	// Define uma tabela de caracteres válidos no Windows-1252
 	validChars := charmap.Windows1252
 

@@ -13,11 +13,11 @@ func Cadorc(p *mpb.Progress) {
 	modules.NewCol("cadorc", "anexo_ant")
 
 	cnxOrig, cnxDest, err := connection.GetConexoes()
-    if err != nil {
+	if err != nil {
 		panic(fmt.Sprintf("erro ao obter conexões: %v", err.Error()))
-    }
-    defer cnxOrig.Close()
-    defer cnxDest.Close()
+	}
+	defer cnxOrig.Close()
+	defer cnxDest.Close()
 
 	tx, err := cnxDest.Begin()
 	if err != nil {
@@ -57,8 +57,8 @@ func Cadorc(p *mpb.Progress) {
 		b.codigo codccusto,
 		'P' liberado_tela
 	from
-		"Y132" a
-	join "Y153" b on a.setor_id = b.id
+		"X136" a
+	join "X157" b on a.setor_id = b.id
 	order by 1`
 
 	totalLinhas, _ := modules.CountRows(query)
@@ -75,7 +75,8 @@ func Cadorc(p *mpb.Progress) {
 		if err := rows.StructScan(&registro); err != nil {
 			panic(fmt.Sprintf("erro ao ler registro: %v", err))
 		}
-		registro.Descr, err = modules.DecodeToWin1252(registro.Descr); if err != nil {
+		registro.Descr, err = modules.EncodeToWin1252(registro.Descr)
+		if err != nil {
 			panic(fmt.Sprintf("erro ao decodificar descricao: %v", err))
 		}
 		if _, err = insert.Exec(
@@ -128,7 +129,7 @@ func Icadorc(p *mpb.Progress) {
 		produto_unidade_id codreduz,
 		quantidade qtd,
 		valor_unitario valor
-	from "Y135"`
+	from "X139"`
 
 	totalLinhasItens, _ := modules.CountRows(query)
 	bar := modules.NewProgressBar(p, totalLinhasItens, "Icadorc")
@@ -188,13 +189,11 @@ func Vcadorc(p *mpb.Progress) {
 		c.quantidade * b.valor_unitario total,
 		a.rcms_id id_cadorc
 	from
-		"Y134" a
-	join "Y133" b on
+		"X138" a
+	join "X137" b on
 		a.id = b.rcms_favorecido_id
-	join "Y135" c on
+	join "X139" c on
 		b.rcmsitem_id = c.id
-	join "Y65" d on
-		a.favorecido_id = d.id
 	order by
 		a.rcms_id,
 		c.ordem`
